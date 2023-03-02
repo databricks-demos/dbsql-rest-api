@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+
+<script>
+  var periodsgs = <?!= JSON.stringify(periods) ?>;
+  var date_start = <?!= JSON.stringify(order_date_start) ?>;
+  var date_end = <?!= JSON.stringify(order_date_end) ?>;
+  console.log(periodsgs);
+</script>
+
+<html>
+
+<head>
+  <base target="_top">
+  <style>
+    body {
+      margin: 0;
+      background-color: hsl(0, 0%, 98%);
+      color: #333;
+      font: 100% / normal sans-serif;
+    }
+    
+    main {
+      margin: 0 auto;
+      padding: 32px 0;
+      width: 90%;
+      max-width: 60rem;
+    }
+
+    form {
+      box-sizing: border-box; 
+    }
+
+    label {
+      padding-bottom: 12px;
+      color: #202124;
+      font-family: "Google Sans", Roboto, RobotoDraft, Helvetica, Arial, sans-serif;
+      font-size: 12px;
+      font-weight: 400;
+      line-height: 18px;
+    }
+    input[type=date], select {
+      width: 100%;
+      padding: 8px 12px;
+      margin-top: 8px;
+      margin-bottom: 16px;
+      box-sizing: border-box;
+      color: #202124;
+      font-family: "Google Sans", Roboto, RobotoDraft, Helvetica, Arial, sans-serif;
+      font-size: 12px;
+      font-weight: 400;
+      line-height: 18px;
+    }
+
+    select {
+      padding: 10px 12px;
+    }
+
+    button {
+      background-color: #ff3621;
+      border: none;
+      color: white;
+      padding: 8px 24px;
+      text-decoration: none;
+      margin: 4px 2px;
+      cursor: pointer;
+      width: 100%;
+    }
+
+    button:hover {
+      background-color: #bd2b26;
+      border-color: #bd2b26;
+    }
+  </style>
+</head>
+
+<body>
+  <main>
+    <form>
+      <div id="period">
+        <label for="select">Period</label>
+        <select id="select"></select>
+      </div>
+      <div id="custom" style="display: none;">
+        <label for="start">Custom start date</label>
+        <input type="date" id="start">
+        <label for="end">Custom end date</label>
+        <input type="date" id="end">
+      </div>
+      <button type="button" id = "button"> Run orders query </button>
+      <label id="output"></label>
+    </form>
+  </main>
+
+  <script>
+    //alert('Hello!');
+      var select = document.getElementById("select");
+      var startInput = document.getElementById("start");
+      var endInput = document.getElementById("end");
+      var customDiv = document.getElementById("custom")
+      var button = document.getElementById("button");
+      var output = document.getElementById("output");
+
+      window.onload = function() {
+        for (var i = 0; i< periodsgs.length; i++) {
+          var opt = document.createElement("option");
+          opt.value = periodsgs[i];
+          opt.textContent = periodsgs[i];
+          select.appendChild(opt);
+        }
+
+        startInput.value = date_start;
+        startInput.min = date_start;
+        startInput.max = date_end;
+
+        endInput.value = date_start;
+        endInput.min = date_start;
+        endInput.max = date_end;
+      }
+
+      select.onchange = function(){
+        console.log(this.value);
+        if (this.value === periodsgs[periodsgs.length-1]) {
+          customDiv.style.display = "block";
+        } else {
+          customDiv.style.display = "none";
+        }
+      }
+
+      button.onclick = function () {
+        if (select.value === periodsgs[periodsgs.length-1]) {
+          customDate();
+        } else{
+          selectPeriod();
+        }
+      }
+
+      function customDate() {
+        var customDateStart = startInput.value;
+        var customDateEnd = endInput.value;
+        console.log(customDateStart + " " +customDateEnd);
+        google.script.run.withSuccessHandler(onSuccess).customDatesOrders(customDateStart, customDateEnd);
+      }
+
+      function selectPeriod() {
+        var selectPeriod = select.value;
+        console.log(selectPeriod);
+        google.script.run.withSuccessHandler(onSuccess).customPeriodOrders(selectPeriod);
+      }
+
+      function onSuccess(lastQuery) {
+        console.log(lastQuery);
+        output.textContent = lastQuery;
+      }
+
+  </script>
+</body>
+
+</html>

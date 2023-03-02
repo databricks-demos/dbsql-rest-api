@@ -1,0 +1,362 @@
+{
+	"info": {
+		"_postman_id": "eb3f7823-c415-4f90-902d-bd9c628086a2",
+		"name": "Databricks SQL Execution API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Execute SQL Statement (hybrid / default)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"var jsonData = JSON.parse(responseBody);",
+							"pm.environment.set(\"STATEMENT_ID\", jsonData.statement_id);",
+							"if (jsonData.result && jsonData.result.next_chunk_internal_link)",
+							"    pm.environment.set(\"NEXT_CHUNK_LINK\", jsonData.result.next_chunk_internal_link);",
+							"else if (jsonData.result && jsonData.result.external_links && jsonData.result.external_links[0].next_chunk_internal_link)",
+							"    pm.environment.set(\"NEXT_CHUNK_LINK\", jsonData.result.external_links[0].next_chunk_internal_link);",
+							"else",
+							"    pm.environment.unset(\"NEXT_CHUNK_LINK\");",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"statement\": \"SELECT 1\",\n    \"warehouse_id\": \"{{WAREHOUSE_ID}}\"\n}\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{HOST}}/api/2.0/sql/statements",
+					"host": [
+						"{{HOST}}"
+					],
+					"path": [
+						"api",
+						"2.0",
+						"sql",
+						"statements"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Execute SQL Statement (sync)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"var jsonData = JSON.parse(responseBody);",
+							"pm.environment.set(\"STATEMENT_ID\", jsonData.statement_id);",
+							"if (jsonData.result && jsonData.result.next_chunk_internal_link)",
+							"    pm.environment.set(\"NEXT_CHUNK_LINK\", jsonData.result.next_chunk_internal_link);",
+							"else if (jsonData.result && jsonData.result.external_links && jsonData.result.external_links[0].next_chunk_internal_link)",
+							"    pm.environment.set(\"NEXT_CHUNK_LINK\", jsonData.result.external_links[0].next_chunk_internal_link);",
+							"else",
+							"    pm.environment.unset(\"NEXT_CHUNK_LINK\");",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"statement\": \"SELECT 1\",\n    \"warehouse_id\": \"{{WAREHOUSE_ID}}\",\n    \"wait_timeout\": \"20s\",\n    \"on_wait_timeout\": \"CANCEL\"\n}\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{HOST}}/api/2.0/sql/statements",
+					"host": [
+						"{{HOST}}"
+					],
+					"path": [
+						"api",
+						"2.0",
+						"sql",
+						"statements"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Execute SQL Statement (async)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"var jsonData = JSON.parse(responseBody);",
+							"pm.environment.set(\"STATEMENT_ID\", jsonData.statement_id);",
+							"if (jsonData.result && jsonData.result.next_chunk_internal_link)",
+							"    pm.environment.set(\"NEXT_CHUNK_LINK\", jsonData.result.next_chunk_internal_link);",
+							"else if (jsonData.result && jsonData.result.external_links && jsonData.result.external_links[0].next_chunk_internal_link)",
+							"    pm.environment.set(\"NEXT_CHUNK_LINK\", jsonData.result.external_links[0].next_chunk_internal_link);",
+							"else",
+							"    pm.environment.unset(\"NEXT_CHUNK_LINK\");",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"statement\": \"SELECT 1\",\n    \"warehouse_id\": \"{{WAREHOUSE_ID}}\",\n    \"wait_timeout\": \"0s\"\n}\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{HOST}}/api/2.0/sql/statements",
+					"host": [
+						"{{HOST}}"
+					],
+					"path": [
+						"api",
+						"2.0",
+						"sql",
+						"statements"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Execute SQL Statement (async + external links)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"var jsonData = JSON.parse(responseBody);",
+							"pm.environment.set(\"STATEMENT_ID\", jsonData.statement_id);",
+							"if (jsonData.result && jsonData.result.next_chunk_internal_link)",
+							"    pm.environment.set(\"NEXT_CHUNK_LINK\", jsonData.result.next_chunk_internal_link);",
+							"else if (jsonData.result && jsonData.result.external_links && jsonData.result.external_links[0].next_chunk_internal_link)",
+							"    pm.environment.set(\"NEXT_CHUNK_LINK\", jsonData.result.external_links[0].next_chunk_internal_link);",
+							"else",
+							"    pm.environment.unset(\"NEXT_CHUNK_LINK\");",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"statement\": \"SELECT * FROM samples.nyctaxi.trips CROSS JOIN samples.nyctaxi.trips LIMIT 600000\",\n    \"warehouse_id\": \"{{WAREHOUSE_ID}}\",\n    \"wait_timeout\": \"0s\",\n    \"disposition\": \"EXTERNAL_LINKS\",\n    \"format\": \"ARROW_STREAM\"\n}\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{HOST}}/api/2.0/sql/statements",
+					"host": [
+						"{{HOST}}"
+					],
+					"path": [
+						"api",
+						"2.0",
+						"sql",
+						"statements"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Poll status and fetch first chunk",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"var jsonData = JSON.parse(responseBody);",
+							"if (jsonData.result && jsonData.result.next_chunk_internal_link)",
+							"    pm.environment.set(\"NEXT_CHUNK_LINK\", jsonData.result.next_chunk_internal_link);",
+							"else if (jsonData.result && jsonData.result.external_links && jsonData.result.external_links[0].next_chunk_internal_link)",
+							"    pm.environment.set(\"NEXT_CHUNK_LINK\", jsonData.result.external_links[0].next_chunk_internal_link);",
+							"else",
+							"    pm.environment.unset(\"NEXT_CHUNK_LINK\");",
+							""
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"if (!pm.environment.get(\"STATEMENT_ID\")) {",
+							"    throw new Error(\"STATEMENT_ID is not set. This happens when no SQL statement is submitted or when there are no more results to fetch.\")",
+							"}",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{HOST}}/api/2.0/sql/statements/{{STATEMENT_ID}}",
+					"host": [
+						"{{HOST}}"
+					],
+					"path": [
+						"api",
+						"2.0",
+						"sql",
+						"statements",
+						"{{STATEMENT_ID}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Fetch next chunk",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"var jsonData = JSON.parse(responseBody);",
+							"if (jsonData.next_chunk_internal_link)",
+							"    pm.environment.set(\"NEXT_CHUNK_LINK\", jsonData.next_chunk_internal_link);",
+							"else if (jsonData.external_links && jsonData.external_links[0].next_chunk_internal_link)",
+							"    pm.environment.set(\"NEXT_CHUNK_LINK\", jsonData.external_links[0].next_chunk_internal_link);",
+							"else",
+							"    pm.environment.unset(\"NEXT_CHUNK_LINK\");",
+							""
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"if (!pm.environment.get(\"NEXT_CHUNK_LINK\")) {",
+							"    throw new Error(\"NEXT_CHUNK_LINK is not set. This happens when no SQL statement is submitted or when there are no more results to fetch.\")",
+							"}",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{HOST}}{{NEXT_CHUNK_LINK}}",
+					"host": [
+						"{{HOST}}{{NEXT_CHUNK_LINK}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Cancel SQL Statement",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"if (!pm.environment.get(\"STATEMENT_ID\")) {",
+							"    throw new Error(\"STATEMENT_ID is not set. Please execute a SQL statement first.\")",
+							"}",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "{{HOST}}/api/2.0/sql/statements/{{STATEMENT_ID}}/cancel",
+					"host": [
+						"{{HOST}}"
+					],
+					"path": [
+						"api",
+						"2.0",
+						"sql",
+						"statements",
+						"{{STATEMENT_ID}}",
+						"cancel"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{AUTH_TOKEN}}",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	]
+}

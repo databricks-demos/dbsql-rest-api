@@ -1,0 +1,59 @@
+<script>
+  var datags = <?!= JSON.stringify(data) ?>;
+  console.log(datags);
+</script>
+
+<!DOCTYPE html>
+<html>
+
+<head>
+  <base target="_top">
+  <style>
+    th, td {
+      border-bottom: 1px solid #ddd;
+      border-top: 1px solid #ddd;
+      color: #202124;
+      font-family: "Google Sans",Roboto,RobotoDraft,Helvetica,Arial,sans-serif;
+      font-size: 12px;
+      font-weight: 400;
+      line-height: 18px;
+      padding: 15px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    td:nth-child(1) {
+      font-weight: 800;
+    }
+
+    table {
+      border-collapse: collapse;
+    }
+  </style>
+</head>
+
+<body>
+  <table id="target"></table>
+
+  <script>
+    window.onload = function() {
+
+        var toAdd = document.createDocumentFragment();
+
+        for (var i = 0; i < datags.length; i++) {
+          var newRow = document.createElement('tr');
+          newRow.id = `output${i+1}`;
+          var newCol1 = document.createElement('td');
+          var newCol2 = document.createElement('td');
+          newCol1.textContent = datags[i][0]
+          newCol2.textContent = datags[i][1];
+          newRow.appendChild(newCol1);
+          newRow.appendChild(newCol2);
+          toAdd.appendChild(newRow);
+        }
+        document.getElementById('target').appendChild(toAdd);
+      }
+  </script>
+</body>
+
+</html>
