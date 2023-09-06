@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Acme, Inc Stores</title>
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/styles.css') }}">
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script>
+    $(document).ready(function() {
+      function displayError(message) {
+        var errorContainer = $("#error-container");
+        errorContainer.text("Error: " + message);
+        errorContainer.show();
+      }
+
+      function showLoadingIcon() {
+        $('#loading-icon').show();
+      }
+
+      function hideLoadingIcon() {
+        $('#loading-icon').hide();
+      }
+
+      // Save the statement ID in order to get other pages.
+      var globalRequestId = null
+      var globalStoreData = null
+      var globalPageCount = null
+      var globalPageSize = parseInt($("#page-size-select").text());
+
+      // Function to retrieve customer store information.
+      function getStores() {
+        $.ajax({
+          url: "/api/1.0/stores",
+          type: "GET",
+          success: function(data) {
+            if (data.stores == null) {
+              displayError("An error occurred.");
+            } else {
+              globalStoreData = data.stores;
+              globalPageCount = Math.ceil(globalStoreData.length / globalPageSize);
+              showStoresPage(0);
+            }
+          },
+          error: function(xhr, textStatus, errorThrown) {
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+              var errorMessage = xhr.responseJSON.message;
+              displayError(errorMessage);
+            } else {
+              displayError("An error occurred: " + textStatus);
+            }
+          }
+        });
+      }
+      
+      function showStoresPage(pageIndex) {
+        // Check the manifest to see if the currently loaded chunk has the page.
+        var storeList = $("#store-list");
+        hideLoadingIcon();
+        storeList.empty();
+        var rowOffset = pageIndex * globalPageSize;
+        for (var i = rowOffset; i < globalStoreData.length && i < (rowOffset + globalPageSize); i++) {
+          var store = globalStoreData[i];
+          var row = $("<tr></tr>");
+          var link = $("<a></a>").attr('href', '/stores/' + store[0]).text(store[0]);
+          row.append($("<td></td>").append(link));
+          row.append($("<td></td>").text(store[1]));
+          row.append($("<td></td>").text(store[2]));
+          row.append($("<td></td>").text(store[3]));
+          row.append($("<td></td>").text(store[4]));
+          row.append($("<td></td>").text(store[5]));
+          storeList.append(row);
+        }
+
+        updatePaginationLinks(pageIndex)
+      }
+
+      showLoadingIcon();
+      getStores();
+
+      // Event listener for pagination buttons
+      $("#prev-btn").click(function() {
+        var currentPage = parseInt($("#current-page").text());
+        if (currentPage > 0) {
+          showStoresPage(currentPage - 1);
+          $("#current-page").text(currentPage - 1);
+        }
+      });
+
+      $("#next-btn").click(function() {
+        var currentPage = parseInt($("#current-page").text());
+        if (currentPage < globalPageCount)
+        showStoresPage(currentPage + 1);
+        $("#current-page").text(currentPage + 1);
+      });
+
+      function updatePaginationLinks(currentPage) {        
+        var paginationLinks = '';
+        var maxVisibleLinks = 3;
+        var lastPage = globalPageCount - 1;
+
+        // Add Previous page link
+        if (currentPage > 0) {
+          paginationLinks += '<li><a href="#" class="page-link" data-page="' + (currentPage - 1) + '">Prev</a></li>';
+        }
+
+        // Add First page
+        if (currentPage === 0) {
+          paginationLinks += '<li><span class="current">0</span></li>';
+        } else if (currentPage > 0) {
+          paginationLinks += '<li><a href="#" class="page-link" data-page="0">0</a></li>';
+        }
+
+        // Add "..." before current page if necessary
+        if (currentPage >= maxVisibleLinks) {
+          paginationLinks += '<li><span class="ellipsis">...</span></li>';
+        }
+
+        // Calculate the range of visible pages
+        var startPage = Math.max(1, currentPage - Math.floor(maxVisibleLinks / 2));
+        var endPage = Math.min(lastPage - 1, startPage + maxVisibleLinks - 1);
+
+        // Generate page links within the range
+        for (var i = startPage; i <= endPage; i++) {
+          if (i === currentPage) {
+            paginationLinks += '<li><span class="current">' + i + '</span></li>';
+          } else {
+            paginationLinks += '<li><a href="#" class="page-link" data-page="' + i + '">' + i + '</a></li>';
+          }
+        }
+
+        // Add "..." after current page if necessary
+        if (endPage < (lastPage - 1)) {
+          paginationLinks += '<li><span class="ellipsis">...</span></li>';
+        }
+
+        // Add Last page link
+        if (currentPage === lastPage) {
+          paginationLinks += '<li><span class="current">' + lastPage + '</span></li>';
+        } else if (currentPage < lastPage) {
+          paginationLinks += '<li><a href="#" class="page-link" data-page="' + lastPage + '">' + lastPage + '</a></li>';
+        }
+
+        // Add Next page link
+        if (currentPage < lastPage) {
+          paginationLinks += '<li><a href="#" class="page-link" data-page="' + (currentPage + 1) + '">Next</a></li>';
+        }
+
+        $('#pagination-links').html(paginationLinks);
+      }
+
+      // Add click event handler for page links
+      $(document).on('click', '.page-link', function() {
+        var page_index = $(this).data('page');
+        console.log('Clicked page:', page_index);
+        showStoresPage(page_index);
+      });
+
+      $('#page-size-select').change(function() {
+        globalPageSize = parseInt($(this).val());
+        globalPageCount = Math.ceil(globalStoreData.length / globalPageSize);
+        $("#current-page").text(0);
+        showStoresPage(0)
+      });
+    });
+  </script>
+</head>
+<body>
+  <h1>Acme, Inc Stores</h1>
+  <table id="table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Manager</th>
+        <th>Employee Count</th>
+        <th>City</th>
+        <th>State</th>
+      </tr>
+    </thead>
+    <tbody id="store-list"></tbody>
+  </table>
+  <div id="loading-icon" style="display: none;">
+    <img src="{{ url_for('static', filename='loading.gif') }}" alt="Loading..." />
+  </div>
+  <div id="error-container" style="display: none;"></div>
+  <div>
+    <div id="pagination-container">
+      <ul id="pagination-links"></ul>
+    </div>
+    <select id="page-size-select" style="display: none;">
+      <option value="10" selected>10</option>
+      <option value="20">20</option>
+      <option value="50">50</option>
+      <option value="100">100</option>
+    </select>
+  </div>
+</body>
+</html>

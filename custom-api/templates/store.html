@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Sales for Store {{ store_id }}</title>
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/styles.css') }}">
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script>
+    $(document).ready(function() {
+      function displayError(message) {
+        var errorContainer = $("#error-container");
+        errorContainer.text("Error: " + message);
+        errorContainer.show();
+      }
+
+      function showLoadingIcon() {
+        $('#loading-icon').show();
+      }
+
+      function hideLoadingIcon() {
+        $('#loading-icon').hide();
+      }
+
+      function showDownloadLoadingIcon() {
+        $('#download-loading-icon').show();
+      }
+
+      function hideDownloadLoadingIcon() {
+        $('#download-loading-icon').hide();
+      }
+
+      // Function to retrieve customer data
+      function getSalesAsync(format, limit, callback) {
+        var data = {
+          format: format
+        };
+        if (limit) {
+          data.limit = limit;
+        }
+        $.ajax({
+          url: "/api/1.0/stores/{{ store_id }}/sales",
+          type: "GET",
+          data: data,
+          dataType: "json",
+          success: function(response) {
+            callback(response.request_id);
+          },
+          error: function(xhr, textStatus, errorThrown) {
+            hideLoadingIcon();
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+              var errorMessage = xhr.responseJSON.message;
+              displayError(errorMessage);
+            } else {
+              displayError("An error occurred: " + textStatus);
+            }
+            callback(null);
+          }
+        });
+      }
+
+      async function getSalesResults(requestId, download) {
+        $.ajax({
+          url: "/api/1.0/stores/{{ store_id }}/sales",
+          type: "GET",
+          data: {
+            request_id: requestId
+          },
+          dataType: "json",
+          success: function(response) {
+            if (["PENDING", "RUNNING"].includes(response.state)) {
+              setTimeout(
+                function() { getSalesResults(response.request_id, download) }, 
+                100) // Poll again after 100ms.
+            } else if (response.links !== null) {
+              if (download) {
+                hideLoadingIcon();
+                downloadSales(response.links)
+              } else {
+                displaySales(response.links)
+              }
+            } else {
+              displayError("An error occurred");
+            }
+          },
+          error: function(xhr, textStatus, errorThrown) {
+            hideLoadingIcon();
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+              var errorMessage = xhr.responseJSON.message;
+              displayError(errorMessage);
+            } else {
+              displayError("An error occurred: " + textStatus);
+            }
+          }
+        })
+      }
+
+      async function displaySales(links) {
+        var orderList = $("#sale-list");
+        orderList.empty();
+        for (var i = 0; i < links.length; i++) {
+          var data = await downloadFromExternalLink(links[i]);
+          updateSales(data)
+        }
+      }
+
+      function downloadSales(links) {
+        concatenateCSVFiles(links, "sales.csv")
+      }
+
+      function limitConcurrency(promises, concurrencyLimit) {
+        const results = [];
+        let index = 0;
+
+        function next() {
+          if (index >= promises.length) {
+            return Promise.resolve();
+          }
+
+          const promise = promises[index];
+          index++;
+
+          return promise().then((result) => {
+            results.push(result);
+            return next();
+          });
+        }
+
+        const limitedPromises = Array(concurrencyLimit)
+          .fill(null)
+          .map(() => next());
+
+        return Promise.all(limitedPromises).then(() => results);
+      }
+
+      function concatenateCSVFiles(fileUrls, filename) {
+        console.log("file urls: " + fileUrls)
+        var mergedContent = "";
+
+        var concurrencyLimit = 5; // Set the concurrency limit as needed
+
+        var requests = limitConcurrency(
+          fileUrls.map(function (url) {
+            return function () {
+              return $.ajax({
+                url: url,
+                dataType: "text",
+              });
+            };
+          }),
+          concurrencyLimit
+        );
+
+        requests
+          .then(function (responses) {
+            for (var i = 0; i < responses.length; i++) {
+              mergedContent += responses[i];
+            }
+
+            // Create a Blob from the merged CSV data
+            var blob = new Blob([mergedContent], { type: "text/csv" });
+
+            // Create a download link
+            var link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+
+            // Trigger a click event on the download link
+            link.click();
+            hideDownloadLoadingIcon();
+
+            // Clean up by revoking the object URL
+            URL.revokeObjectURL(link.href);
+          })
+          .catch(function (error) {
+            // Handle errors
+            console.error(error);
+          });
+      }
+
+      showLoadingIcon();
+      // Initial load of customer data
+      getSalesAsync("JSON_ARRAY", 20, function(requestId) {
+        if (requestId !== null) {
+          setTimeout(function() { getSalesResults(requestId, false) }, 100) // Wait 100ms before polling
+        }
+      });
+
+      function updateSales(orders) {
+        hideLoadingIcon();
+        var orderList = $("#sale-list");
+        for (var i = 0; i < orders.length; i++) {
+          var order = orders[i];
+          var row = $("<tr></tr>");
+          row.append($("<td></td>").text(order[0]));
+          row.append($("<td></td>").text(order[1]));
+          row.append($("<td></td>").text(order[2]));
+          row.append($("<td></td>").text(order[3]));
+          row.append($("<td></td>").text(order[4]));
+          row.append($("<td></td>").text(order[5]));
+          orderList.append(row);
+        }
+      }
+
+      async function downloadFromExternalLink(externalLink) {
+        try {
+          const response = await $.ajax({
+            url: externalLink,
+            type: "GET"
+          });
+          return JSON.parse(response);
+        } catch (error) {
+          // Retry if lcp isn't enabled yet.
+          return downloadFromExternalLink(externalLink)
+        }
+      }
+
+      $("#download-btn").click(function() {
+        showDownloadLoadingIcon();
+        getSalesAsync("CSV", null, function(requestId) {
+          if (requestId !== null) {
+            setTimeout(function() { getSalesResults(requestId, true) }, 100) // Wait 100ms before polling
+          }
+        });
+      });
+    });
+  </script>
+</head>
+<body>
+  <h1>Last 20 Sales for Store {{ store_id }}</h1>
+  <div class="container">
+    <button id="download-btn">Download All as CSV</button>
+    <div id="download-loading-icon" style="display: none;">
+      <img src="{{ url_for('static', filename='loading.gif') }}" alt="Loading..." height="20" />
+    </div>  
+  </div>
+  <table id="table">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Sale ID</th>
+        <th>Store ID</th>
+        <th>Item ID</th>
+        <th>Quantity</th>
+        <th>Sale Price</th>
+      </tr>
+    </thead>
+    <tbody id="sale-list"></tbody>
+  </table>
+  <div id="loading-icon" style="display: none;">
+    <img src="{{ url_for('static', filename='loading.gif') }}" alt="Loading..." />
+  </div>
+  <div id="error-container" style="display: none;"></div>
+</body>
+</html>
