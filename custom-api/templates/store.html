@@ -29,12 +29,12 @@
       }
 
       // Function to retrieve customer data
-      function getSalesAsync(format, limit, callback) {
+      function getSalesAsync(format, rowLimit, callback) {
         var data = {
           format: format
         };
-        if (limit) {
-          data.limit = limit;
+        if (rowLimit) {
+          data.row_limit = rowLimit;
         }
         $.ajax({
           url: "/api/1.0/stores/{{ store_id }}/sales",
@@ -70,12 +70,12 @@
               setTimeout(
                 function() { getSalesResults(response.request_id, download) }, 
                 100) // Poll again after 100ms.
-            } else if (response.links !== null) {
+            } else if (response.state == "SUCCEEDED") {
               if (download) {
                 hideLoadingIcon();
-                downloadSales(response.links)
+                downloadSales(response.request_id, response.chunk_count)
               } else {
-                displaySales(response.links)
+                displaySales(response.request_id, response.chunk_count)
               }
             } else {
               displayError("An error occurred");
@@ -93,17 +93,18 @@
         })
       }
 
-      async function displaySales(links) {
+      async function displaySales(requestId, chunkCount) {
         var orderList = $("#sale-list");
         orderList.empty();
-        for (var i = 0; i < links.length; i++) {
-          var data = await downloadFromExternalLink(links[i]);
+        console.log("Displaying " + chunkCount + " chunks for request " + requestId);
+        for (var chunkIndex = 0; chunkIndex < chunkCount; chunkIndex++) {
+          var data = await downloadFromExternalLinkJson(requestId, chunkIndex);
           updateSales(data)
         }
       }
 
-      function downloadSales(links) {
-        concatenateCSVFiles(links, "sales.csv")
+      function downloadSales(request_id, chunk_count) {
+        concatenateCSVFiles(request_id, chunk_count, "sales.csv")
       }
 
       function limitConcurrency(promises, concurrencyLimit) {
@@ -131,28 +132,48 @@
         return Promise.all(limitedPromises).then(() => results);
       }
 
-      function concatenateCSVFiles(fileUrls, filename) {
-        console.log("file urls: " + fileUrls)
-        var mergedContent = "";
+      async function getExternalLink(requestId, chunkIndex) {
+        const response = await $.ajax({
+          url: "/api/1.0/stores/{{ store_id }}/sales",
+          type: "GET",
+          data: {
+            request_id: requestId,
+            chunk_index: chunkIndex
+          }
+        });
+        return response.link;
+      }
 
-        var concurrencyLimit = 5; // Set the concurrency limit as needed
+      async function concatenateCSVFiles(requestId, chunkCount, filename) {
+        console.log("Chunk count: " + chunkCount)
+        var mergedContentDictionary = {};
 
-        var requests = limitConcurrency(
-          fileUrls.map(function (url) {
-            return function () {
-              return $.ajax({
-                url: url,
-                dataType: "text",
-              });
-            };
-          }),
-          concurrencyLimit
-        );
+        var concurrencyLimit = 6; // Browser limits.
+
+        chunks = []
+        for (chunkIndex = 0; chunkIndex < chunkCount; chunkIndex++) {
+          chunks.push(chunkIndex)
+        }
+
+        const promises = chunks.map(function (chunkIndex) {
+          return function () {
+            return downloadFromExternalLink(requestId, chunkIndex);
+          };
+        });
+
+        var requests = limitConcurrency(promises, concurrencyLimit);
 
         requests
           .then(function (responses) {
             for (var i = 0; i < responses.length; i++) {
-              mergedContent += responses[i];
+              const { chunkIndex, data } = responses[i];
+              mergedContentDictionary[chunkIndex] = data;
+            }
+
+            // Assemble the downloaded chunks in order.
+            mergedContent = "";
+            for (chunkIndex = 0; chunkIndex < chunkCount; chunkIndex++) {
+              mergedContent += mergedContentDictionary[chunkIndex];
             }
 
             // Create a Blob from the merged CSV data
@@ -200,17 +221,26 @@
         }
       }
 
-      async function downloadFromExternalLink(externalLink) {
+      async function downloadFromExternalLinkJson(requestId, chunkIndex) {
         try {
-          const response = await $.ajax({
-            url: externalLink,
-            type: "GET"
-          });
-          return JSON.parse(response);
+          const {index, data} = await downloadFromExternalLink(requestId, chunkIndex);
+          return JSON.parse(data)
         } catch (error) {
-          // Retry if lcp isn't enabled yet.
-          return downloadFromExternalLink(externalLink)
+          return downloadFromExternalLinkJson(requestId, chunkIndex);
         }
+      }
+
+      async function downloadFromExternalLink(requestId, chunkIndex) {
+        const externalLink = await getExternalLink(requestId, chunkIndex);
+        console.log("Got chunk " + chunkIndex + " external link " + externalLink);
+        const data = await $.ajax({
+          url: externalLink,
+          type: "GET"
+        });
+        console.log("Got chunk " + chunkIndex + " data");
+        return new Promise((resolve, reject) => {
+          resolve({chunkIndex, data});
+        });
       }
 
       $("#download-btn").click(function() {

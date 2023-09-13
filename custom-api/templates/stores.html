@@ -26,16 +26,16 @@
       var globalPageCount = null
       var globalPageSize = parseInt($("#page-size-select").text());
 
-      // Function to retrieve customer store information.
-      function getStores() {
+      // Function to retrieve store information.
+      function listStores() {
         $.ajax({
           url: "/api/1.0/stores",
           type: "GET",
-          success: function(data) {
-            if (data.stores == null) {
+          success: function(response) {
+            if (response.stores == null) {
               displayError("An error occurred.");
             } else {
-              globalStoreData = data.stores;
+              globalStoreData = response.stores;
               globalPageCount = Math.ceil(globalStoreData.length / globalPageSize);
               showStoresPage(0);
             }
@@ -74,7 +74,7 @@
       }
 
       showLoadingIcon();
-      getStores();
+      listStores();
 
       // Event listener for pagination buttons
       $("#prev-btn").click(function() {

@@ -99,51 +99,73 @@ def list_stores():
 
 @app.route("/api/1.0/stores/<string:store_id>/sales", methods=["GET"])
 def list_sales_async(store_id):
+    # If a request ID is not supplied, execute a new list request.
     request_id = request.args.get('request_id')
+    chunk_index = request.args.get('chunk_index')
     if request_id is None:
+        # Get the format from the request. It can be ‘CSV’, ‘JSON_ARRAY’, or ‘ARROW_STREAM’
         format = request.args.get('format')
-        limit = request.args.get('limit')
-        links = None
+        row_limit = request.args.get('row_limit')
+        response = execute_list_sales_request(store_id, format, row_limit)
         
-        # Need to add parameters.
-        parameters = [
-            StatementParameterListItem(name='store_id', value=store_id, type="INT")
-        ]
+    # If there is no chunk index, poll for status.
+    elif chunk_index is None:
+        response = get_list_sales_status(request_id)
 
-        statement_response = w.statement_execution.execute_statement(
-            statement = sql_statements[SqlStatement.LIST_SALES],
-            format = Format[format],
-            disposition = Disposition.EXTERNAL_LINKS,
-            wait_timeout = "0s",
-            on_wait_timeout = TimeoutAction.CONTINUE,
-            warehouse_id = warehouse_id,
-            parameters = parameters,
-            row_limit = limit,
-            byte_limit = 500000000 # 50MB limit
-            )
-
+    # Otherwise return the pre-signed URL for the specified chunk.
     else:
-        links = []
-        statement_response = w.statement_execution.get_statement(statement_id = request_id)
-        if statement_response.status.state == StatementState.SUCCEEDED:
-            # Get the first link as it is already embedded.
-            links.append(rewrite_external_link(statement_response.result.external_links[0].external_link))
-            # Get all the other links if they exist.
-            for chunk in statement_response.manifest.chunks[1:]:
-                result_data = w.statement_execution.get_statement_result_chunk_n(
-                    statement_id = request_id,
-                    chunk_index = chunk.chunk_index
-                )
-
-                links.append(rewrite_external_link(result_data.external_links[0].external_link))
+        response = get_list_sales_chunk(request_id, chunk_index)
         
+    return jsonify(response)
+
+def execute_list_sales_request(store_id, format, row_limit):
+    # Use parameters to prevent SQL injection via the store ID string.
+    parameters = [
+        StatementParameterListItem(name='store_id', value=store_id, type="INT")
+    ]
+
+    statement_response = w.statement_execution.execute_statement(
+        statement = sql_statements[SqlStatement.LIST_SALES],
+        format = Format[format],
+        disposition = Disposition.EXTERNAL_LINKS,
+        wait_timeout = "0s",
+        warehouse_id = warehouse_id,
+        parameters = parameters,
+        row_limit = row_limit,
+        byte_limit = 500000000 # 500MB limit because lcp crashes.
+        )
+
     response = {
         'request_id': statement_response.statement_id,
-        'state': str(statement_response.status.state.name),
-        'links': links
+        'state': str(statement_response.status.state.name)
     }
 
-    return jsonify(response)
+    return response
+
+def get_list_sales_status(request_id):
+    statement_response = w.statement_execution.get_statement(statement_id = request_id)
+    response = {
+        'request_id': statement_response.statement_id,
+        'state': str(statement_response.status.state.name)
+    }
+
+    if statement_response.status.state == StatementState.SUCCEEDED:
+        response['chunk_count'] = statement_response.manifest.total_chunk_count
+
+    return response
+
+def get_list_sales_chunk(request_id, chunk_index):
+    result_data = w.statement_execution.get_statement_result_chunk_n(
+        statement_id = request_id,
+        chunk_index = chunk_index
+    )
+
+    response = {
+        'request_id': request_id,
+        'link': rewrite_external_link(result_data.external_links[0].external_link)
+    }
+
+    return response
 
 @app.route("/api/1.0/stores/<string:store_id>/sales", methods=["POST"])
 def insert_sale(store_id):
