@@ -32,33 +32,49 @@ class SqlStatement(Enum):
 sql_statements = {
      SqlStatement.LIST_STORES: """
             select
-                s_store_sk as store_id, 
-                s_store_name as store_name, 
-                s_manager as manager,
-                s_number_employees as number_employees, 
-                s_city as city,
-                s_state as state
+                id,
+                name, 
+                manager,
+                employee_count
+                city,
+                state
             from 
-                chris_stevens.retail.store
+                hive_metastore.acme_demo.stores
         """,
     SqlStatement.LIST_SALES: """
             select 
-                ss_sold_date_sk,
-                ss_ticket_number,
-                ss_store_sk,
-                ss_item_sk,
-                ss_quantity,
-                ss_sales_price
+                date,
+                id,
+                store_id,
+                item_id,
+                quantity,
+                price
             from 
-                chris_stevens.retail.store_sales
+                hive_metastore.acme_demo.sales
             where
-                ss_store_sk = :store_id
+                store_id = :store_id
             order by
-                ss_sold_date_sk desc
+                date desc
         """,
     SqlStatement.INSERT_SALE: """
-            INSERT INTO chris_stevens.retail.store_sales (ss_sold_date_sk, ss_ticket_number, ss_store_sk, ss_item_sk, ss_sales_price, ss_quantity) 
-            VALUES (:sold_date, :sale_id, :store_id, :item_id, :sales_price, :quantity)
+            INSERT INTO
+              hive_metastore.acme_demo.sales (
+                date,
+                id,
+                store_id,
+                item_id,
+                price,
+                quantity
+              )
+            VALUES
+              (
+                :sold_date,
+                :sale_id, 
+                :store_id,
+                :item_id,
+                :price,
+                :quantity
+              )
         """
 }
 
@@ -227,7 +243,7 @@ def insert_sale(store_id):
         StatementParameterListItem(name='store_id', value=store_id, type="INT"),
         StatementParameterListItem(name='item_id', value=item_id, type="INT"),
         StatementParameterListItem(name='quantity', value=quantity, type="INT"),
-        StatementParameterListItem(name='sales_price', value=sales_price, type="DECIMAL(7,2)")
+        StatementParameterListItem(name='price', value=sales_price, type="DECIMAL(7,2)")
     ]
 
     statement_response = w.statement_execution.execute_statement(

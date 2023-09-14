@@ -22,3 +22,6 @@ echo "Enter your Databricks SQL Warehouse ID:"
 read WAREHOUSE_ID
 echo
 export DATABRICKS_WAREHOUSE_ID=$WAREHOUSE_ID
+
+# Create the sample data.
+python3 ./create_data.py
