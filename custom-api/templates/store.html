@@ -4,31 +4,15 @@
   <title>Sales for Store {{ store_id }}</title>
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/styles.css') }}">
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="{{ url_for('static', filename='display_helper.js') }}"></script>
   <script>
     $(document).ready(function() {
-      function displayError(message) {
-        var errorContainer = $("#error-container");
-        errorContainer.text("Error: " + message);
-        errorContainer.show();
-      }
 
-      function showLoadingIcon() {
-        $('#loading-icon').show();
-      }
+      //
+      // Functions for executing an async request to get sales data, poll for results and download the data.
+      //
 
-      function hideLoadingIcon() {
-        $('#loading-icon').hide();
-      }
-
-      function showDownloadLoadingIcon() {
-        $('#download-loading-icon').show();
-      }
-
-      function hideDownloadLoadingIcon() {
-        $('#download-loading-icon').hide();
-      }
-
-      // Function to retrieve customer data
+      // Function that kicks off the async retrieval of sales information.
       function getSalesAsync(format, rowLimit, callback) {
         var data = {
           format: format
@@ -57,7 +41,8 @@
         });
       }
 
-      async function getSalesResults(requestId, download) {
+      // Poll the status for the store information request and handle results.
+      async function pollSalesStatus(requestId, resultHandler) {
         $.ajax({
           url: "/api/1.0/stores/{{ store_id }}/sales",
           type: "GET",
@@ -66,19 +51,19 @@
           },
           dataType: "json",
           success: function(response) {
-            if (["PENDING", "RUNNING"].includes(response.state)) {
+            // If the request is still being processed by Databricks SQL, poll again.
+            if (response.state == "PENDING" || response.state == "RUNNING") {
               setTimeout(
-                function() { getSalesResults(response.request_id, download) }, 
-                100) // Poll again after 100ms.
+                function() { 
+                  pollSalesStatus(response.request_id, resultHandler) 
+                }, 
+                100 // 100ms polling interval.
+              )
+            // If the request is complete, process the results.
             } else if (response.state == "SUCCEEDED") {
-              if (download) {
-                hideLoadingIcon();
-                downloadSales(response.request_id, response.chunk_count)
-              } else {
-                displaySales(response.request_id, response.chunk_count)
-              }
+              resultHandler(response.request_id, response.chunk_count);
             } else {
-              displayError("An error occurred");
+              displayError("An error occurred. Request state: " + response.state);
             }
           },
           error: function(xhr, textStatus, errorThrown) {
@@ -93,20 +78,151 @@
         })
       }
 
+      // Get the external link for a given chunk.
+      async function getExternalLink(requestId, chunkIndex) {
+        const response = await $.ajax({
+          url: "/api/1.0/stores/{{ store_id }}/sales",
+          type: "GET",
+          data: {
+            request_id: requestId,
+            chunk_index: chunkIndex
+          }
+        });
+        return response.link;
+      }
+
+      // Get an external link and download the data.
+      async function downloadFromExternalLink(requestId, chunkIndex) {
+        const externalLink = await getExternalLink(requestId, chunkIndex);
+        const data = await $.ajax({
+          url: externalLink,
+          type: "GET"
+        });
+        return new Promise((resolve, reject) => {
+          resolve({chunkIndex, data});
+        });
+      }
+
+      //
+      // Code that displays the last 20 sales on page load.
+      //
+
+      // Initial load of the last 20 sales for the store in JSON format.
+      showLoadingIcon();
+      getSalesAsync("JSON_ARRAY", 20, function(requestId) {
+        if (requestId !== null) {
+          setTimeout(
+            function() { 
+              pollSalesStatus(requestId, displaySales) 
+            }, 
+            100 // 100ms polling interval.
+          )
+        }
+      });
+
+      // Display handler for a sales request. It assumes the results are in JSON.
       async function displaySales(requestId, chunkCount) {
-        var orderList = $("#sale-list");
-        orderList.empty();
-        console.log("Displaying " + chunkCount + " chunks for request " + requestId);
         for (var chunkIndex = 0; chunkIndex < chunkCount; chunkIndex++) {
-          var data = await downloadFromExternalLinkJson(requestId, chunkIndex);
-          updateSales(data)
+          var sales = await downloadFromExternalLinkJson(requestId, chunkIndex);
+          hideLoadingIcon();
+          var saleList = $("#sale-list");
+          for (var i = 0; i < sales.length; i++) {
+            var sale = sales[i];
+            var row = $("<tr></tr>");
+            row.append($("<td></td>").text(sale[0]));
+            row.append($("<td></td>").text(sale[1]));
+            row.append($("<td></td>").text(sale[2]));
+            row.append($("<td></td>").text(sale[3]));
+            row.append($("<td></td>").text(sale[4]));
+            row.append($("<td></td>").text(sale[5]));
+            saleList.append(row);
+          }
         }
       }
 
-      function downloadSales(request_id, chunk_count) {
-        concatenateCSVFiles(request_id, chunk_count, "sales.csv")
+      // Download the results from the external link and parse as JSON.
+      async function downloadFromExternalLinkJson(requestId, chunkIndex) {
+        try {
+          const {index, data} = await downloadFromExternalLink(requestId, chunkIndex);
+          return JSON.parse(data)
+        } catch (error) {
+          return downloadFromExternalLinkJson(requestId, chunkIndex);
+        }
       }
 
+      //
+      // Code that downloads all the sales data as CSV.
+      //
+
+      // Download button handler that kicks off the full sales info request.
+      $("#download-btn").click(function() {
+        showDownloadLoadingIcon();
+        getSalesAsync("CSV", null, function(requestId) {
+          if (requestId !== null) {
+            setTimeout(
+              function() { 
+                pollSalesStatus(requestId, downloadSales) 
+              }, 
+              100 // 100ms polling interval.
+            )
+          }
+        });
+      });
+
+      async function downloadSales(requestId, chunkCount) {
+        var concurrencyLimit = 6; // Browser limits.
+        var mergedContentDictionary = {};
+        
+        // Create an array of indices and map them to promises for the result downloads.
+        var chunks = []
+        for (chunkIndex = 0; chunkIndex < chunkCount; chunkIndex++) {
+          chunks.push(chunkIndex)
+        }
+
+        const promises = chunks.map(function (chunkIndex) {
+          return function () {
+            return downloadFromExternalLink(requestId, chunkIndex);
+          };
+        });
+
+        // Concurrently execute the promises to download the chunks of data.
+        var requests = limitConcurrency(promises, concurrencyLimit);
+        requests
+          .then(function (responses) {
+            // Collect the unordered responses into a dictionary by chunk index.
+            for (var i = 0; i < responses.length; i++) {
+              const { chunkIndex, data } = responses[i];
+              mergedContentDictionary[chunkIndex] = data;
+            }
+
+            // Assemble the downloaded chunks in order.
+            mergedContent = "";
+            for (chunkIndex = 0; chunkIndex < chunkCount; chunkIndex++) {
+              mergedContent += mergedContentDictionary[chunkIndex];
+            }
+
+            // Create a Blob from the merged CSV data.
+            var blob = new Blob([mergedContent], { type: "text/csv" });
+
+            // Create a download link.
+            var link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = "sales.csv";
+
+            // Trigger a click event on the download link
+            link.click();
+            hideDownloadLoadingIcon();
+
+            // Clean up by revoking the object URL
+            URL.revokeObjectURL(link.href);
+          })
+          .catch(function (error) {
+            // Handle errors
+            console.error(error);
+          });
+      }
+
+      // Function to execute a list of promises with a concurrency limit. 
       function limitConcurrency(promises, concurrencyLimit) {
         const results = [];
         let index = 0;
@@ -131,126 +247,6 @@
 
         return Promise.all(limitedPromises).then(() => results);
       }
-
-      async function getExternalLink(requestId, chunkIndex) {
-        const response = await $.ajax({
-          url: "/api/1.0/stores/{{ store_id }}/sales",
-          type: "GET",
-          data: {
-            request_id: requestId,
-            chunk_index: chunkIndex
-          }
-        });
-        return response.link;
-      }
-
-      async function concatenateCSVFiles(requestId, chunkCount, filename) {
-        console.log("Chunk count: " + chunkCount)
-        var mergedContentDictionary = {};
-
-        var concurrencyLimit = 6; // Browser limits.
-
-        chunks = []
-        for (chunkIndex = 0; chunkIndex < chunkCount; chunkIndex++) {
-          chunks.push(chunkIndex)
-        }
-
-        const promises = chunks.map(function (chunkIndex) {
-          return function () {
-            return downloadFromExternalLink(requestId, chunkIndex);
-          };
-        });
-
-        var requests = limitConcurrency(promises, concurrencyLimit);
-
-        requests
-          .then(function (responses) {
-            for (var i = 0; i < responses.length; i++) {
-              const { chunkIndex, data } = responses[i];
-              mergedContentDictionary[chunkIndex] = data;
-            }
-
-            // Assemble the downloaded chunks in order.
-            mergedContent = "";
-            for (chunkIndex = 0; chunkIndex < chunkCount; chunkIndex++) {
-              mergedContent += mergedContentDictionary[chunkIndex];
-            }
-
-            // Create a Blob from the merged CSV data
-            var blob = new Blob([mergedContent], { type: "text/csv" });
-
-            // Create a download link
-            var link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.download = filename;
-
-            // Trigger a click event on the download link
-            link.click();
-            hideDownloadLoadingIcon();
-
-            // Clean up by revoking the object URL
-            URL.revokeObjectURL(link.href);
-          })
-          .catch(function (error) {
-            // Handle errors
-            console.error(error);
-          });
-      }
-
-      showLoadingIcon();
-      // Initial load of customer data
-      getSalesAsync("JSON_ARRAY", 20, function(requestId) {
-        if (requestId !== null) {
-          setTimeout(function() { getSalesResults(requestId, false) }, 100) // Wait 100ms before polling
-        }
-      });
-
-      function updateSales(orders) {
-        hideLoadingIcon();
-        var orderList = $("#sale-list");
-        for (var i = 0; i < orders.length; i++) {
-          var order = orders[i];
-          var row = $("<tr></tr>");
-          row.append($("<td></td>").text(order[0]));
-          row.append($("<td></td>").text(order[1]));
-          row.append($("<td></td>").text(order[2]));
-          row.append($("<td></td>").text(order[3]));
-          row.append($("<td></td>").text(order[4]));
-          row.append($("<td></td>").text(order[5]));
-          orderList.append(row);
-        }
-      }
-
-      async function downloadFromExternalLinkJson(requestId, chunkIndex) {
-        try {
-          const {index, data} = await downloadFromExternalLink(requestId, chunkIndex);
-          return JSON.parse(data)
-        } catch (error) {
-          return downloadFromExternalLinkJson(requestId, chunkIndex);
-        }
-      }
-
-      async function downloadFromExternalLink(requestId, chunkIndex) {
-        const externalLink = await getExternalLink(requestId, chunkIndex);
-        console.log("Got chunk " + chunkIndex + " external link " + externalLink);
-        const data = await $.ajax({
-          url: externalLink,
-          type: "GET"
-        });
-        console.log("Got chunk " + chunkIndex + " data");
-        return new Promise((resolve, reject) => {
-          resolve({chunkIndex, data});
-        });
-      }
-
-      $("#download-btn").click(function() {
-        showDownloadLoadingIcon();
-        getSalesAsync("CSV", null, function(requestId) {
-          if (requestId !== null) {
-            setTimeout(function() { getSalesResults(requestId, true) }, 100) // Wait 100ms before polling
-          }
-        });
-      });
     });
   </script>
 </head>
