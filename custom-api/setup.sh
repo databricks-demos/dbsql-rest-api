@@ -2,7 +2,7 @@
 
 # Install dependencies.
 pip3 install flask
-pip3 install databricks-sdk
+pip3 install databricks-sdk==0.8.0
 npm install -g local-cors-proxy
 
 # Get the Databricks HOST.
@@ -13,7 +13,7 @@ export DATABRICKS_HOST=$HOST
 
 # Get the access token.
 echo "Enter your Databricks personal access token:"
-read TOKEN
+read -s TOKEN
 echo
 export DATABRICKS_TOKEN=$TOKEN
 
