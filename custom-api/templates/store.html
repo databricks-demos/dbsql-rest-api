@@ -57,7 +57,7 @@
                 function() { 
                   pollSalesStatus(response.request_id, resultHandler) 
                 }, 
-                100 // 100ms polling interval.
+                100 // 100ms delay before polling.
               )
             // If the request is complete, process the results.
             } else if (response.state == "SUCCEEDED") {
@@ -98,9 +98,7 @@
           url: externalLink,
           type: "GET"
         });
-        return new Promise((resolve, reject) => {
-          resolve({chunkIndex, data});
-        });
+        return {chunkIndex, data}
       }
 
       //
@@ -115,7 +113,7 @@
             function() { 
               pollSalesStatus(requestId, displaySales) 
             }, 
-            100 // 100ms polling interval.
+            100 // 100ms delay before polling.
           )
         }
       });
@@ -163,7 +161,7 @@
               function() { 
                 pollSalesStatus(requestId, downloadSales) 
               }, 
-              100 // 100ms polling interval.
+              100 // 100ms delay before polling.
             )
           }
         });

@@ -25,7 +25,7 @@ This demo includes a Flask web server as a backend and an HTML/JQuery front end.
     - Initializes Databricks host, token, and Warehouse ID environment variables.
     - Creates sample tables in your hive metastore. The size is < 50KB.
         - This is a significantly smaller data set that we used in the Data+AI Summit demo.
-2. Run the app: `python3 store_server.py`
+2. Run the app: `python3 acme_server.py`
 3. Visit http://127.0.0.1:5000 in your browser.
 
 # Known Issues

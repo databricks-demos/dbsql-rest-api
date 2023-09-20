@@ -158,11 +158,11 @@ def list_sales_async(store_id):
         
     # If there is no chunk index, poll for status.
     elif chunk_index is None:
-        response = get_list_sales_status(request_id)
+        response = get_request_status(request_id)
 
     # Otherwise return the pre-signed URL for the specified chunk.
     else:
-        response = get_list_sales_chunk(request_id, chunk_index)
+        response = get_request_chunk_link(request_id, chunk_index)
         
     return jsonify(response)
 
@@ -181,7 +181,7 @@ def execute_list_sales_request(store_id, format, row_limit):
         warehouse_id = warehouse_id,
         parameters = parameters,
         row_limit = row_limit,
-        byte_limit = 500000000 # 500MB limit because lcp crashes.
+        byte_limit = 500000000 # 500MB limit because local CORS proxy crashes.
         )
 
     response = {
@@ -192,7 +192,7 @@ def execute_list_sales_request(store_id, format, row_limit):
     return response
 
 # Poll the Statement Execution API for status on a previously generated execution request.
-def get_list_sales_status(request_id):
+def get_request_status(request_id):
     statement_response = w.statement_execution.get_statement(statement_id = request_id)
     response = {
         'request_id': statement_response.statement_id,
@@ -205,7 +205,7 @@ def get_list_sales_status(request_id):
     return response
 
 # Get the external link for the given chunk. The pre-signed URL is valid for 15 mins.
-def get_list_sales_chunk(request_id, chunk_index):
+def get_request_chunk_link(request_id, chunk_index):
     result_data = w.statement_execution.get_statement_result_chunk_n(
         statement_id = request_id,
         chunk_index = chunk_index
