@@ -39,7 +39,7 @@
   <h1>Sale Form</h1>
   <form id="sale-form" method="POST">
     <label for="store-id">Store ID</label>
-    <input type="text" id="store-id" name="storeId" required>
+    <input type="text" id="store-id" name="storeId" value="{{ store_id or '' }}" required>
 
     <label for="item-id">Item ID</label>
     <input type="text" id="item-id" name="item-id" required>

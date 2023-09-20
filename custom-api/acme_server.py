@@ -91,7 +91,8 @@ def customer(store_id):
 
 @app.route("/newsale")
 def newSale():
-    return render_template("new_sale.html")
+    store_id = request.args.get('store_id')
+    return render_template("new_sale.html", store_id=store_id)
 
 #
 # Custom API Endpoints

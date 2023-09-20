@@ -120,6 +120,11 @@
 
       // Display handler for a sales request. It assumes the results are in JSON.
       async function displaySales(requestId, chunkCount) {
+        if (chunkCount == 0) {
+          hideLoadingIcon();
+          return;
+        }
+
         for (var chunkIndex = 0; chunkIndex < chunkCount; chunkIndex++) {
           var sales = await downloadFromExternalLinkJson(requestId, chunkIndex);
           hideLoadingIcon();
@@ -251,6 +256,7 @@
 <body>
   <h1>Last 20 Sales for Store {{ store_id }}</h1>
   <div class="container">
+    <a href="/newsale?store_id={{store_id}}" class="button">Add Sale</a>
     <button id="download-btn">Download All as CSV</button>
     <div id="download-loading-icon" style="display: none;">
       <img src="{{ url_for('static', filename='loading.gif') }}" alt="Loading..." height="20" />
