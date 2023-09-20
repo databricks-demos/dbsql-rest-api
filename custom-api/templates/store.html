@@ -61,7 +61,7 @@
               )
             // If the request is complete, process the results.
             } else if (response.state == "SUCCEEDED") {
-              resultHandler(response.request_id, response.chunk_count);
+              resultHandler(response.request_id, response.chunk_count, response.link);
             } else {
               displayError("An error occurred. Request state: " + response.state);
             }
@@ -91,13 +91,18 @@
         return response.link;
       }
 
-      // Get an external link and download the data.
-      async function downloadFromExternalLink(requestId, chunkIndex) {
-        const externalLink = await getExternalLink(requestId, chunkIndex);
-        const data = await $.ajax({
+      // Download the data from an external link.
+      async function downloadFromExternalLink(externalLink) {
+        return $.ajax({
           url: externalLink,
           type: "GET"
         });
+      }
+
+      // Get an external link for the chunk and download the data.
+      async function downloadChunkData(requestId, chunkIndex) {
+        const externalLink = await getExternalLink(requestId, chunkIndex);
+        const data = await downloadFromExternalLink(externalLink);
         return {chunkIndex, data}
       }
 
@@ -119,14 +124,20 @@
       });
 
       // Display handler for a sales request. It assumes the results are in JSON.
-      async function displaySales(requestId, chunkCount) {
+      async function displaySales(requestId, chunkCount, firstChunkLink) {
         if (chunkCount == 0) {
           hideLoadingIcon();
           return;
         }
 
         for (var chunkIndex = 0; chunkIndex < chunkCount; chunkIndex++) {
-          var sales = await downloadFromExternalLinkJson(requestId, chunkIndex);
+          var sales = null;
+          // Optimize the first chunk if the backend already returned it.
+          if (chunkIndex == 0) {
+            sales = await downloadFromExternalLinkJson(firstChunkLink);
+          } else {
+            sales = await downloadChunkJson(requestId, chunkIndex);
+          }
           hideLoadingIcon();
           var saleList = $("#sale-list");
           for (var i = 0; i < sales.length; i++) {
@@ -143,13 +154,23 @@
         }
       }
 
-      // Download the results from the external link and parse as JSON.
-      async function downloadFromExternalLinkJson(requestId, chunkIndex) {
+      // Get an external link for the chunk, download the results and parse as JSON.
+      async function downloadChunkJson(requestId, chunkIndex) {
         try {
-          const {index, data} = await downloadFromExternalLink(requestId, chunkIndex);
+          const {index, data} = await downloadChunkData(requestId, chunkIndex);
           return JSON.parse(data)
         } catch (error) {
-          return downloadFromExternalLinkJson(requestId, chunkIndex);
+          return downloadChunkJson(requestId, chunkIndex);
+        }
+      }
+
+      // Download from external link and parse as JSON.
+      async function downloadFromExternalLinkJson(externalLink) {
+        try {
+          const data = await downloadFromExternalLink(externalLink);
+          return JSON.parse(data)
+        } catch (error) {
+          return downloadFromExternalLinkJson(externalLink);
         }
       }
 
@@ -172,7 +193,7 @@
         });
       });
 
-      async function downloadSales(requestId, chunkCount) {
+      async function downloadSales(requestId, chunkCount, firstChunkLink) {
         var concurrencyLimit = 6; // Browser limits.
         var mergedContentDictionary = {};
         
@@ -184,7 +205,7 @@
 
         const promises = chunks.map(function (chunkIndex) {
           return function () {
-            return downloadFromExternalLink(requestId, chunkIndex);
+            return downloadChunkData(requestId, chunkIndex);
           };
         });
 

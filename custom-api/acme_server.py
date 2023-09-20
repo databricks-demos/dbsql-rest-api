@@ -202,6 +202,8 @@ def get_request_status(request_id):
     }
 
     if statement_response.status.state == StatementState.SUCCEEDED:
+        # A successful response will always include the first external link. Return to the caller to save a round trip.
+        response['link'] = rewrite_external_link(statement_response.result.external_links[0].external_link)
         response['chunk_count'] = statement_response.manifest.total_chunk_count
 
     return response
