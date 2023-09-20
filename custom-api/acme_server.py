@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify, render_template
 from enum import Enum
+from urllib.parse import urlparse
 import os
 import requests
 import json
@@ -270,21 +271,10 @@ def insert_sale(store_id):
 local_cors_proxy_lock = threading.Lock()
 local_cors_proxy_enabled = False
 
-def get_host(external_link):
-    # Check for .com and .net.
-    dot_com_index = external_link.find(".com")
-    if dot_com_index != -1:
-        return external_link[:dot_com_index+len(".com")]
-    
-    dot_net_index = external_link.find(".net")
-    if dot_net_index != -1:
-        return external_link[:dot_net_index+len(".net")]
-    
-    return external_link
-
 def rewrite_external_link(external_link):
     global local_cors_proxy_enabled
-    external_link_host = get_host(external_link)
+    parsed_url = urlparse(external_link)
+    external_link_host = '{uri.scheme}://{uri.hostname}'.format(uri=parsed_url)
     # Synchronize to make sure the cors proxy is enabled.
     with local_cors_proxy_lock:
         if local_cors_proxy_enabled is False:
