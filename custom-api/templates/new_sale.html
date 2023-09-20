@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Order Form</title>
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/styles.css') }}">
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script>
+    $(document).ready(function() {
+      $('#sale-form').submit(function(event) {
+        event.preventDefault(); // Prevent the default form submission
+
+        var form = document.getElementById("sale-form");
+        console.log("storeId: " + form.elements.storeId.value);
+        var formData = new FormData(form);
+        var serializedData = new URLSearchParams(formData).toString();
+        var storeId = form.elements.storeId.value;
+        var url = "/api/1.0/stores/" + storeId + "/sales";
+        var redirectUrl = "/stores/" + storeId;
+
+        // Submit the form data to the URL for the specified store.
+        $.ajax({
+          url: url,
+          method: 'POST',
+          data: serializedData,
+          success: function(response) {
+            // Handle the success response
+            window.location.href = redirectUrl;
+          },
+          error: function(xhr, status, error) {
+            // Handle the error response
+            console.error(error);
+          }
+        });
+      });
+    });
+  </script>
+</head>
+<body>
+  <h1>Sale Form</h1>
+  <form id="sale-form" method="POST">
+    <label for="store-id">Store ID</label>
+    <input type="text" id="store-id" name="storeId" value="{{ store_id or '' }}" required>
+
+    <label for="item-id">Item ID</label>
+    <input type="text" id="item-id" name="item-id" required>
+
+    <label for="date">Date</label>
+    <input type="text" id="date" name="date" required>
+
+    <label for="price">Price</label>
+    <input type="text" id="price" name="price" required>
+
+    <label for="quantity">Quantity</label>
+    <input type="text" id="quantity" name="quantity" required>
+
+    <button type="submit">Submit</button>
+  </form>
+</body>
+</html>
