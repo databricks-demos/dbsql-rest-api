@@ -267,6 +267,9 @@ def insert_sale(store_id):
         'sale_id': sale_id
     }
 
+    if statement_response.status.state == StatementState.FAILED:
+        response['error_message'] = statement_response.status.error.message;
+
     return jsonify(response)
 
 #
