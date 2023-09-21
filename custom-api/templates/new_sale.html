@@ -4,6 +4,7 @@
   <title>Order Form</title>
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/styles.css') }}">
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="{{ url_for('static', filename='display_helper.js') }}"></script>
   <script>
     $(document).ready(function() {
       $('#sale-form').submit(function(event) {
@@ -23,8 +24,12 @@
           method: 'POST',
           data: serializedData,
           success: function(response) {
-            // Handle the success response
-            window.location.href = redirectUrl;
+            if (response.state == "FAILED") {
+              displayError(response.error_message);
+            } else {
+              // Handle the success response
+              window.location.href = redirectUrl;
+            }
           },
           error: function(xhr, status, error) {
             // Handle the error response
@@ -55,5 +60,6 @@
 
     <button type="submit">Submit</button>
   </form>
+  <div id="error-container" style="display: none;"></div>
 </body>
 </html>
