@@ -30,15 +30,11 @@ def execute_statement_sync(sql_statement):
 
   return
 
-# Create a database.
-print("Creating acme_demo database.")
-execute_statement_sync("create database hive_metastore.acme_demo")
-
 # Create the stores table.
-print("Creating acme_demo.stores table.")
+print("Creating acme_demo_stores table.")
 execute_statement_sync(
     """
-      CREATE TABLE hive_metastore.acme_demo.stores (
+      CREATE TABLE acme_demo_stores (
         id INT,
         name VARCHAR(10),
         manager VARCHAR(5),
@@ -50,10 +46,10 @@ execute_statement_sync(
 )
 
 # Generate random data for the stores table.
-print("Inserting data into acme_demo.stores table.")
+print("Inserting data into acme_demo_stores table.")
 execute_statement_sync(
     """
-      INSERT INTO hive_metastore.acme_demo.stores
+      INSERT INTO acme_demo_stores
         SELECT 
             CAST(RAND()*1000 AS INT),
             CONCAT(CHAR(FLOOR(RAND()*26)+65), CHAR(FLOOR(RAND()*26)+65), CHAR(FLOOR(RAND()*26)+65), CHAR(FLOOR(RAND()*26)+65), CHAR(FLOOR(RAND()*26)+65)),
@@ -89,10 +85,10 @@ execute_statement_sync(
 )
 
 # Create sales table.
-print("Creating acme_demo.sales table.")
+print("Creating acme_demo_sales table.")
 execute_statement_sync(
     """
-      CREATE TABLE hive_metastore.acme_demo.sales (
+      CREATE TABLE acme_demo_sales (
         id BIGINT,
         date DATE,
         store_id INT,
@@ -104,10 +100,10 @@ execute_statement_sync(
 )
 
 # Generate random data for the sales table.
-print("Inserting data into acme_demo.sales table.")
+print("Inserting data into acme_demo_sales table.")
 execute_statement_sync(
     """
-      INSERT INTO hive_metastore.acme_demo.sales
+      INSERT INTO acme_demo_sales
         SELECT 
             RAND()*100000,
             CAST(DATEADD(day, RAND()*365, '2020-01-01') AS DATE),
@@ -116,7 +112,7 @@ execute_statement_sync(
             RAND()*1000,
             CAST(RAND()*1000 AS DECIMAL(7,2))
         FROM (
-            SELECT id, ROW_NUMBER() OVER (ORDER BY id) - 1 AS row_number FROM hive_metastore.acme_demo.stores
+            SELECT id, ROW_NUMBER() OVER (ORDER BY id) - 1 AS row_number FROM acme_demo_stores
         ) i
         JOIN (
             SELECT 1 AS row_number UNION ALL
@@ -130,6 +126,6 @@ execute_statement_sync(
             SELECT 9 AS row_number UNION ALL
             SELECT 10 AS row_number
         ) r
-        ON r.row_number <= (SELECT COUNT(*) FROM hive_metastore.acme_demo.stores);
+        ON r.row_number <= (SELECT COUNT(*) FROM acme_demo_stores);
     """
 )

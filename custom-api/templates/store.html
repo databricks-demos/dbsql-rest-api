@@ -133,7 +133,7 @@
         for (var chunkIndex = 0; chunkIndex < chunkCount; chunkIndex++) {
           var sales = null;
           // Optimize the first chunk if the backend already returned it.
-          if (chunkIndex == 0) {
+          if (chunkIndex == 0 && firstChunkLink != null) {
             sales = await downloadFromExternalLinkJson(firstChunkLink);
           } else {
             sales = await downloadChunkJson(requestId, chunkIndex);

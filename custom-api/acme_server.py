@@ -40,7 +40,7 @@ sql_statements = {
                 city,
                 state
             from 
-                hive_metastore.acme_demo.stores
+                acme_demo_stores
         """,
     SqlStatement.LIST_SALES: """
             select 
@@ -51,7 +51,7 @@ sql_statements = {
                 quantity,
                 price
             from 
-                hive_metastore.acme_demo.sales
+                acme_demo_sales
             where
                 store_id = :store_id
             order by
@@ -59,7 +59,7 @@ sql_statements = {
         """,
     SqlStatement.INSERT_SALE: """
             INSERT INTO
-              hive_metastore.acme_demo.sales (
+              acme_demo_sales (
                 date,
                 id,
                 store_id,
@@ -202,8 +202,12 @@ def get_request_status(request_id):
     }
 
     if statement_response.status.state == StatementState.SUCCEEDED:
-        # A successful response will always include the first external link. Return to the caller to save a round trip.
-        response['link'] = rewrite_external_link(statement_response.result.external_links[0].external_link)
+        # A successful response will include the first external link if there is data.
+        # Return to the caller to save a round trip.
+        external_link = None
+        if statement_response.result != None:
+            external_link = rewrite_external_link(statement_response.result.external_links[0].external_link)
+        response['link'] = external_link
         response['chunk_count'] = statement_response.manifest.total_chunk_count
 
     return response
